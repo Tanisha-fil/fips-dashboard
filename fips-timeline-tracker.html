@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIP Status Timeline Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .status-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+        }
+
+        .summary-status {
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .summary-count {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #667eea;
+        }
+
+        .timeline-month {
+            position: relative;
+            margin-bottom: 30px;
+            padding-left: 30px;
+        }
+
+        .timeline-month::before {
+            content: '';
+            position: absolute;
+            left: 2px;
+            top: 10px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #667eea;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .timeline-header h3 {
+            color: #333;
+            font-size: 1.4em;
+        }
+
+        .change-count {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .timeline-changes {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .change-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .change-item.new {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .change-item.status-change {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .change-item.removed {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .change-icon {
+            font-size: 1.2em;
+        }
+
+        .change-text {
+            flex: 1;
+            line-height: 1.6;
+        }
+
+        .change-text a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .change-text a:hover {
+            text-decoration: underline;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .status-final { background: #d4edda; color: #155724; }
+        .status-draft { background: #fff3cd; color: #856404; }
+        .status-accepted { background: #cce5ff; color: #004085; }
+        .status-deferred { background: #ffeaa7; color: #856404; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
+        .status-withdrawn { background: #e2e3e5; color: #383d41; }
+        .status-active { background: #d1ecf1; color: #0c5460; }
+        .status-last-call { background: #f0ad4e; color: #fff; }
+        .status-superseded { background: #e7e7e7; color: #555; }
+
+        .status-change-arrow {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            background: white;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .no-changes {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .last-updated {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 FIP Status Timeline Tracker</h1>
+            <p>Month-on-Month Status Change Tracking</p>
+            <div style="margin-top: 15px;">
+                <a href="fips-dashboard-static.html" style="color: white; text-decoration: underline; opacity: 0.9;">← Back to Main Dashboard</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2>Current Status Summary</h2>
+                <div class="status-summary-grid">
+            <div class="summary-card">
+                <div class="summary-status status-final">Final</div>
+                <div class="summary-count">68</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-draft">Draft</div>
+                <div class="summary-count">6</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-deferred">Deferred</div>
+                <div class="summary-count">5</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-rejected">Rejected</div>
+                <div class="summary-count">3</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-active">Active</div>
+                <div class="summary-count">2</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-withdrawn">Withdrawn</div>
+                <div class="summary-count">2</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-superseded">Superseded</div>
+                <div class="summary-count">2</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-accepted">Accepted</div>
+                <div class="summary-count">2</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-status status-last-call">Last Call</div>
+                <div class="summary-count">1</div>
+            </div></div>
+            </div>
+
+            <div class="section">
+                <h2>Status Changes Timeline</h2>
+                <div class="timeline">
+                    
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>February 2025</h3>
+                        <span class="change-count">3 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0100.md" target="_blank">FIP-0100</a> - Removing Batch Balancer, Replacing It With a Per-sector Fee ...
+                            <span class="status-badge status-last-call">Last Call</span>
+                        </span>
+                    </div>
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0101.md" target="_blank">FIP-0101</a> - Removal of the ProveCommitAggregate method from the miner ac...
+                            <span class="status-badge status-draft">Draft</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0098.md" target="_blank">FIP-0098</a> - Simplify termination fee calculation to a fixed pe...
+                            <span class="status-change-arrow">Last Call → Accepted</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>March 2025</h3>
+                        <span class="change-count">2 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0100.md" target="_blank">FIP-0100</a> - Removing Batch Balancer, Replacing It With a Per-s...
+                            <span class="status-change-arrow">Last Call → Accepted</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0101.md" target="_blank">FIP-0101</a> - Removal of the ProveCommitAggregate method from th...
+                            <span class="status-change-arrow">Draft → Accepted</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>April 2025</h3>
+                        <span class="change-count">1 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0103.md" target="_blank">FIP-0103</a> - Removal of the ExtendSectorExpiration method from the miner ...
+                            <span class="status-badge status-draft">Draft</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>May 2025</h3>
+                        <span class="change-count">6 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0106.md" target="_blank">FIP-0106</a> - Removal of the ProveReplicaUpdates method from the miner act...
+                            <span class="status-badge status-draft">Draft</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0077.md" target="_blank">FIP-0077</a> - Add Cost Opportunity For New Miner Creation...
+                            <span class="status-change-arrow">Draft → Last Call</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0086.md" target="_blank">FIP-0086</a> - Fast Finality in Filecoin (F3)...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0097.md" target="_blank">FIP-0097</a> - Add Support for EIP-1153 (Transient Storage) in th...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0098.md" target="_blank">FIP-0098</a> - Simplify termination fee calculation to a fixed pe...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0100.md" target="_blank">FIP-0100</a> - Removing Batch Balancer, Replacing It With a Per-s...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>June 2025</h3>
+                        <span class="change-count">3 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0107.md" target="_blank">FIP-0107</a> - Implicit Messages in Block Receipts...
+                            <span class="status-badge status-last-call">Last Call</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0103.md" target="_blank">FIP-0103</a> - Removal of the ExtendSectorExpiration method from ...
+                            <span class="status-change-arrow">Draft → Last Call</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0106.md" target="_blank">FIP-0106</a> - Removal of the ProveReplicaUpdates method from the...
+                            <span class="status-change-arrow">Draft → Last Call</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>July 2025</h3>
+                        <span class="change-count">1 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0105.md" target="_blank">FIP-0105</a> - Add Support for EIP-2537 (BLS12-381 Precompiles) in the FEVM...
+                            <span class="status-badge status-draft">Draft</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>August 2025</h3>
+                        <span class="change-count">2 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0064.md" target="_blank">FIP-0064</a> - Add Parameters to Base Fee Mechanism...
+                            <span class="status-badge status-draft">Draft</span>
+                        </span>
+                    </div>
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0109.md" target="_blank">FIP-0109</a> - Enable smart contract notifications for Direct Data Onboardi...
+                            <span class="status-badge status-last-call">Last Call</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>September 2025</h3>
+                        <span class="change-count">5 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0077.md" target="_blank">FIP-0077</a> - Add Cost Opportunity For New Miner Creation...
+                            <span class="status-change-arrow">Last Call → Accepted</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0103.md" target="_blank">FIP-0103</a> - Removal of the ExtendSectorExpiration method from ...
+                            <span class="status-change-arrow">Last Call → Accepted</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0105.md" target="_blank">FIP-0105</a> - Add Support for EIP-2537 (BLS12-381 Precompiles) i...
+                            <span class="status-change-arrow">Draft → Accepted</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0106.md" target="_blank">FIP-0106</a> - Removal of the ProveReplicaUpdates method from the...
+                            <span class="status-change-arrow">Last Call → Accepted</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0109.md" target="_blank">FIP-0109</a> - Enable smart contract notifications for Direct Dat...
+                            <span class="status-change-arrow">Last Call → Accepted</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>October 2025</h3>
+                        <span class="change-count">6 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0077.md" target="_blank">FIP-0077</a> - Add Cost Opportunity For New Miner Creation...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0101.md" target="_blank">FIP-0101</a> - Removal of the ProveCommitAggregate method from th...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0103.md" target="_blank">FIP-0103</a> - Removal of the ExtendSectorExpiration method from ...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0105.md" target="_blank">FIP-0105</a> - Add Support for EIP-2537 (BLS12-381 Precompiles) i...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0106.md" target="_blank">FIP-0106</a> - Removal of the ProveReplicaUpdates method from the...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    <div class="change-item status-change">
+                        <span class="change-icon">🔄</span>
+                        <span class="change-text">
+                            <strong>Status Change:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0109.md" target="_blank">FIP-0109</a> - Enable smart contract notifications for Direct Dat...
+                            <span class="status-change-arrow">Accepted → Final</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                <div class="timeline-month">
+                    <div class="timeline-header">
+                        <h3>November 2025</h3>
+                        <span class="change-count">1 changes</span>
+                    </div>
+                    <div class="timeline-changes">
+                        
+                    <div class="change-item new">
+                        <span class="change-icon">➕</span>
+                        <span class="change-text">
+                            <strong>New:</strong> <a href="https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0110.md" target="_blank">FIP-0110</a> - Allow Shorter Deal Durations...
+                            <span class="status-badge status-draft">Draft</span>
+                        </span>
+                    </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="last-updated">
+            Last updated: 2026-01-13 17:50:56
+        </div>
+    </div>
+</body>
+</html>
